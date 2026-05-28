@@ -121,8 +121,8 @@ local function getNapeInFrontCFrame(rootPart, nape)
 	local napeSize = nape and nape.Size or Vector3.new(4, 4, 4)
 	local radius = math.max(napeSize.X, napeSize.Y, napeSize.Z) / 2
 	
-	-- Khoảng cách từ người chơi đến bề mặt Nape là 3.5 studs (vừa tầm kiếm chém bề mặt)
-	local dynamicOffset = radius + 3.5
+	-- Khoảng cách từ người chơi đến bề mặt Nape (giảm xuống 2.0 studs để kiếm chạm bề mặt tốt hơn)
+	local dynamicOffset = radius + 2.0
 
 	local frontPos = rootPart.Position + lookFlat * dynamicOffset + Vector3.new(0, 0.5, 0)
 	-- Quay mặt Nape hướng về phía người chơi để chém vào bề mặt dễ dàng hơn
