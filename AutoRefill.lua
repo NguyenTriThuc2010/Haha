@@ -130,33 +130,34 @@ local function checkAndRefill()
 	local blades = getBlades()
 
 	local needRefill = false
+	local reason = ""
 
 	if gas and gas <= Config.GasMin then
-		print(string.format("[AutoRefill] ⛽ Gas thấp (%s) – Đang tìm trạm refill...", tostring(gas)))
 		needRefill = true
-	end
-
-	if blades and blades <= Config.BladeMin then
-		print(string.format("[AutoRefill] ⚔️  Lưỡi kiếm thấp (%s) – Đang tìm trạm thay...", tostring(blades)))
+		reason = string.format("Gas thấp (%s%%)", tostring(gas))
+	elseif blades and blades <= Config.BladeMin then
 		needRefill = true
-	end
-
-	-- Nếu không đọc được stat, vẫn thử refill định kỳ mỗi 60 giây (safe fallback)
-	if gas == nil and blades == nil then
+		reason = string.format("Lưỡi kiếm thấp (%s)", tostring(blades))
+	elseif gas == nil and blades == nil then
 		if (now - _lastRefill) >= 60 then
 			needRefill = true
-			print("[AutoRefill] ℹ️  Không đọc được stat – Thử refill định kỳ...")
+			reason = "Định kỳ (Không đọc được stat)"
 		end
 	end
 
 	if needRefill then
+		-- Tạm thời đặt cooldown để chặn spam ở các frame tiếp theo
+		_lastRefill = now
+
 		local ok = triggerNearestPrompt({
 			"refill", "reload", "supply", "gas", "blade",
 			"interact", "replace", "restock"
 		})
 		if ok then
-			_lastRefill = now
-			print("[AutoRefill] ✅ Refill thành công!")
+			print(string.format("[AutoRefill] ✅ Kích hoạt nạp tài nguyên (%s) thành công!", reason))
+		else
+			-- Không tìm thấy trạm -> Thử lại sau 4 giây
+			_lastRefill = now - REFILL_COOLDOWN + 4
 		end
 	end
 end
