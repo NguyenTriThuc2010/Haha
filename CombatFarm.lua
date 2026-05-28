@@ -8,9 +8,8 @@ local TweenService = game:GetService("TweenService")
 local Debris = game:GetService("Debris")
 local player = Players.LocalPlayer
 
--- Gọi module Cấu hình để đồng bộ trạng thái bật/tắt
-local TitansHub = script.Parent.Parent
-local Config = require(TitansHub:WaitForChild("Config"))
+-- Gọi module Cấu hình từ Cache chung để đồng bộ trạng thái bật/tắt
+local Config = getgenv().RequireModule("Configs.lua")
 
 -- Khởi tạo biến quản lý Highlight nội bộ
 local currentNapeHighlight = nil
@@ -124,7 +123,7 @@ end
 
 -- Hàm tạo tường bảo vệ (được bóc tách gián tiếp từ module Visuals)
 local function tryCreateWall(targetNape, rootPart)
-	local success, Visuals = pcall(function() return require(script.Parent.Visuals) end)
+	local success, Visuals = pcall(function() return getgenv().RequireModule("Visual.lua") end)
 	if success and Visuals and Visuals.CreateWallEffect then
 		Visuals.CreateWallEffect(targetNape, rootPart)
 	end

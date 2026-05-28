@@ -5,17 +5,23 @@ local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local player = Players.LocalPlayer
 
--- 1. Tìm folder gốc và các Modules con
-local TitansHub = script.Parent
-local Modules = TitansHub:WaitForChild("Modules")
+-- 1. Thiết lập hệ thống nạp Module qua HttpGet (dành cho Executor)
+getgenv().TitansHubRepo = "https://raw.githubusercontent.com/NguyenTriThuc2010/Haha/main/"
+getgenv().TitansHubCache = getgenv().TitansHubCache or {}
+getgenv().RequireModule = function(file)
+    if not getgenv().TitansHubCache[file] then
+        getgenv().TitansHubCache[file] = loadstring(game:HttpGet(getgenv().TitansHubRepo .. file))()
+    end
+    return getgenv().TitansHubCache[file]
+end
 
--- 2. Require các ModuleScript thành phần
-local Config = require(TitansHub:WaitForChild("Config"))
-local UIController = require(Modules:WaitForChild("UIController"))
-local CombatFarm = require(Modules:WaitForChild("CombatFarm"))
-local Visuals = require(Modules:WaitForChild("Visuals"))
--- Sau này nếu thêm tính năng mới (vd: Teleport, ESP), bạn chỉ cần require thêm ở đây:
--- local Teleport = require(Modules:WaitForChild("Teleport"))
+-- 2. Load các ModuleScript thành phần
+local Config = getgenv().RequireModule("Configs.lua")
+local UIController = getgenv().RequireModule("UIController.lua")
+local CombatFarm = getgenv().RequireModule("CombatFarm.lua")
+local Visuals = getgenv().RequireModule("Visual.lua")
+-- Sau này nếu thêm tính năng mới, bạn gọi tương tự ở đây:
+-- local Teleport = getgenv().RequireModule("Teleport.lua")
 
 -- =============================================
 -- KHỞI TẠO HỆ THỐNG
