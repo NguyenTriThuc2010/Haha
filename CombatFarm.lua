@@ -3,57 +3,67 @@
 
 local CombatFarm = {}
 
-local Players = game:GetService("Players")
+local Players    = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
-local Debris = game:GetService("Debris")
-local player = Players.LocalPlayer
+local RunService = game:GetService("RunService")
+local Config     = getgenv().RequireModule("Configs.lua")
+local player     = Players.LocalPlayer
 
--- Gọi module Cấu hình từ Cache chung để đồng bộ trạng thái bật/tắt
-local Config = getgenv().RequireModule("Configs.lua")
-
--- Khởi tạo biến quản lý Highlight nội bộ
+-- Quản lý Highlight nội bộ
 local currentNapeHighlight = nil
-local currentSelectionBox = nil
+local currentSelectionBox  = nil
 
 -- =============================================
--- CÁC HÀM TIỆN ÍCH NỘI BỘ (INTERNAL HELPERS)
+-- CÁC HÀM TIỆN ÍCH NỘI BỘ
 -- =============================================
 
 local function findNapeInTitan(titanModel)
+	-- AOTR: Hitboxes -> Hit -> Nape
 	local hitboxes = titanModel:FindFirstChild("Hitboxes")
 	if hitboxes then
 		local hitFolder = hitboxes:FindFirstChild("Hit")
 		if hitFolder then
-			return hitFolder:FindFirstChild("Nape")
+			local nape = hitFolder:FindFirstChild("Nape")
+			if nape then return nape end
 		end
 	end
-	return nil
+	-- Fallback: tìm thẳng
+	return titanModel:FindFirstChild("Nape", true)
 end
 
 local function isNapeDead(nape)
-	return (not nape) or (not nape.Parent) or (not nape:IsDescendantOf(workspace))
+	return (not nape)
+		or (not nape.Parent)
+		or (not nape:IsDescendantOf(workspace))
 end
 
 local function attachHighlight(napePart)
-	if currentNapeHighlight and currentNapeHighlight.Parent then currentNapeHighlight:Destroy() end
-	if currentSelectionBox and currentSelectionBox.Parent then currentSelectionBox:Destroy() end
+	-- Dọn cái cũ
+	if currentNapeHighlight and currentNapeHighlight.Parent then
+		currentNapeHighlight:Destroy()
+	end
+	if currentSelectionBox and currentSelectionBox.Parent then
+		currentSelectionBox:Destroy()
+	end
 
+	-- SelectionBox viền đỏ
 	local hl = Instance.new("SelectionBox")
-	hl.Adornee = napePart
-	hl.Color3 = Color3.fromRGB(255, 50, 50)
-	hl.LineThickness = 0.08
+	hl.Adornee          = napePart
+	hl.Color3           = Color3.fromRGB(255, 50, 50)
+	hl.LineThickness    = 0.08
 	hl.SurfaceTransparency = 0.4
-	hl.SurfaceColor3 = Color3.fromRGB(255, 80, 80)
-	hl.Parent = workspace
+	hl.SurfaceColor3    = Color3.fromRGB(255, 80, 80)
+	hl.Parent           = workspace
 
+	-- Neon overlay
 	local overlay = Instance.new("Part")
-	overlay.Name = "_NapeOverlay"
-	overlay.Anchored = false
-	overlay.CanCollide = false
-	overlay.CastShadow = false
-	overlay.Material = Enum.Material.Neon
-	overlay.BrickColor = BrickColor.new("Bright red")
-	overlay.Transparency = 0.55
+	overlay.Name          = "_NapeOverlay"
+	overlay.Anchored      = false
+	overlay.CanCollide    = false
+	overlay.CastShadow    = false
+	overlay.Material      = Enum.Material.Neon
+	overlay.BrickColor    = BrickColor.new("Bright red")
+	overlay.Transparency  = 0.55
 	overlay.Size = Vector3.new(
 		math.max(napePart.Size.X * 3, 6),
 		math.max(napePart.Size.Y * 3, 6),
@@ -61,44 +71,53 @@ local function attachHighlight(napePart)
 	)
 	overlay.Parent = workspace
 
-	local weld = Instance.new("WeldConstraint")
-	weld.Part0 = overlay
-	weld.Part1 = napePart
-	weld.Parent = overlay
+	local weld     = Instance.new("WeldConstraint")
+	weld.Part0     = overlay
+	weld.Part1     = napePart
+	weld.Parent    = overlay
 	overlay.CFrame = napePart.CFrame
 
 	currentNapeHighlight = overlay
-	currentSelectionBox = hl
+	currentSelectionBox  = hl
 end
 
 local function removeHighlight()
-	if currentNapeHighlight and currentNapeHighlight.Parent then currentNapeHighlight:Destroy() end
-	if currentSelectionBox and currentSelectionBox.Parent then currentSelectionBox:Destroy() end
+	if currentNapeHighlight and currentNapeHighlight.Parent then
+		currentNapeHighlight:Destroy()
+	end
+	if currentSelectionBox and currentSelectionBox.Parent then
+		currentSelectionBox:Destroy()
+	end
 	currentNapeHighlight = nil
-	currentSelectionBox = nil
+	currentSelectionBox  = nil
 end
 
+-- =============================================
+-- FLY SYSTEM
+-- =============================================
+
 local function applyFly(rootPart, targetPos)
+	-- Dọn cũ
 	local oldBP = rootPart:FindFirstChild("_FarmBodyPos")
 	if oldBP then oldBP:Destroy() end
 	local oldBG = rootPart:FindFirstChild("_FarmBodyGyro")
 	if oldBG then oldBG:Destroy() end
 
 	local bp = Instance.new("BodyPosition")
-	bp.Name = "_FarmBodyPos"
+	bp.Name     = "_FarmBodyPos"
 	bp.MaxForce = Vector3.new(1e6, 1e6, 1e6)
-	bp.D = 800
-	bp.P = 15000
+	bp.D        = 800
+	bp.P        = 15000
 	bp.Position = targetPos
-	bp.Parent = rootPart
+	bp.Parent   = rootPart
 
 	local bg = Instance.new("BodyGyro")
-	bg.Name = "_FarmBodyGyro"
+	bg.Name     = "_FarmBodyGyro"
 	bg.MaxTorque = Vector3.new(1e6, 1e6, 1e6)
-	bg.D = 400
-	bg.P = 8000
-	bg.CFrame = rootPart.CFrame
-	bg.Parent = rootPart
+	bg.D        = 400
+	bg.P        = 8000
+	bg.CFrame   = CFrame.lookAt(rootPart.Position, targetPos)
+	bg.Parent   = rootPart
 
 	return bp, bg
 end
@@ -110,172 +129,163 @@ local function removeFly(rootPart)
 	if bg then bg:Destroy() end
 end
 
-local function cleanUp(sessionId)
-	-- Chỉ dọn dẹp nếu đây là Session đang hoạt động (tránh xóa nhầm của Session mới)
-	if not sessionId or sessionId == Config.FarmSessionId then
-		local character = player.Character
-		if character then
-			local rootPart = character:FindFirstChild("HumanoidRootPart")
-			if rootPart then removeFly(rootPart) end
+-- =============================================
+-- SCANNER – TÌM TITAN GẦN NHẤT
+-- =============================================
+
+function CombatFarm.GetBestTarget()
+	local char = player.Character
+	local hrp  = char and char:FindFirstChild("HumanoidRootPart")
+	if not hrp then return nil end
+
+	local best, minDist = nil, math.huge
+
+	for _, v in ipairs(workspace:GetDescendants()) do
+		if v.Name == "Nape" and v:IsA("BasePart") then
+			-- Bỏ qua Nape đã chết (ẩn hoặc Transparency = 1)
+			if v.Transparency < 0.99 then
+				local d = (hrp.Position - v.Position).Magnitude
+				if d < minDist then
+					minDist = d
+					best    = v
+				end
+			end
 		end
-		removeHighlight()
 	end
+
+	return best
 end
 
-local function getNapeInFrontCFrame(rootPart, nape)
-	local lookFlat = Vector3.new(rootPart.CFrame.LookVector.X, 0, rootPart.CFrame.LookVector.Z)
-	if lookFlat.Magnitude < 0.01 then
-		lookFlat = Vector3.new(0, 0, -1)
+-- =============================================
+-- AUTO ATTACK – Kích hoạt Tool kiếm
+-- =============================================
+
+local function doAttack()
+	local char = player.Character
+	if not char then return end
+
+	-- Tìm Tool kiếm đang cầm
+	local tool = char:FindFirstChildOfClass("Tool")
+	if not tool then
+		-- Equip tool từ Backpack
+		for _, t in ipairs(player.Backpack:GetChildren()) do
+			if t:IsA("Tool") then
+				local tLower = t.Name:lower()
+				if tLower:find("blade") or tLower:find("sword")
+					or tLower:find("knife") or tLower:find("odm")
+					or tLower:find("titan") then
+					local hum = char:FindFirstChildOfClass("Humanoid")
+					if hum then hum:EquipTool(t) end
+					task.wait(0.15)
+					tool = char:FindFirstChildOfClass("Tool")
+					break
+				end
+			end
+		end
 	end
-	lookFlat = lookFlat.Unit
 
-	-- Tính toán kích thước Nape để người chơi không bị chui vào trong
-	local napeSize = nape and nape.Size or Vector3.new(4, 4, 4)
-	local radius = math.max(napeSize.X, napeSize.Y, napeSize.Z) / 2
-	
-	-- Khoảng cách từ người chơi đến bề mặt Nape (giảm xuống 1.0 studs để áp sát hơn)
-	local dynamicOffset = radius + 1.0
-
-	local frontPos = rootPart.Position + lookFlat * dynamicOffset + Vector3.new(0, 0.5, 0)
-	-- Quay mặt Nape hướng về phía người chơi để chém vào bề mặt dễ dàng hơn
-	return CFrame.new(frontPos, rootPart.Position)
-end
-
--- Hàm tạo tường bảo vệ (được bóc tách gián tiếp từ module Visuals)
-local function tryCreateWall(targetNape, rootPart)
-	local success, Visuals = pcall(function() return getgenv().RequireModule("Visual.lua") end)
-	if success and Visuals and Visuals.CreateWallEffect then
-		Visuals.CreateWallEffect(targetNape, rootPart)
+	if tool and tool.Activate then
+		pcall(function() tool:Activate() end)
 	end
 end
 
 -- =============================================
--- API CHÍNH CỦA MODULE (MAIN API)
+-- VÒNG LẶP FARM CHÍNH
 -- =============================================
 
-function CombatFarm.StartLoop()
-	-- Tăng Session ID toàn cục để triệt tiêu các Thread vòng lặp cũ ngay tắp lự
-	Config.FarmSessionId += 1
-	local mySessionId = Config.FarmSessionId
-
-	local function isAlive()
-		return Config.FarmActive and (Config.FarmSessionId == mySessionId)
-	end
+function CombatFarm.StartFarm()
+	Config.FarmActive = true
+	local sessionToken = Config:NewSession()
 
 	task.spawn(function()
-		while isAlive() do
-			local character = player.Character
-			if not character then task.wait(0.5) continue end
+		print("[CombatFarm] 🚀 Farm Loop: BẮT ĐẦU")
 
-			local rootPart = character:FindFirstChild("HumanoidRootPart")
-			if not rootPart then task.wait(0.5) continue end
+		while Config.FarmActive and Config:IsValidSession(sessionToken) do
+			local char = player.Character
+			local hrp  = char and char:FindFirstChild("HumanoidRootPart")
+			local hum  = char and char:FindFirstChildOfClass("Humanoid")
 
-			local titansGroup = workspace:FindFirstChild("Titans")
-			if not titansGroup then task.wait(1) continue end
+			if not hrp or not hum or hum.Health <= 0 then
+				task.wait(1)
+				continue
+			end
 
-			-- 1. Tìm mục tiêu Titan gần nhất
-			local targetNape = nil
-			local closestDist = math.huge
+			-- Tìm Nape gần nhất
+			local nape = CombatFarm.GetBestTarget()
 
-			for _, child in ipairs(titansGroup:GetChildren()) do
-				if child:IsA("Model") then
-					local nape = findNapeInTitan(child)
-					if nape then
-						local dist = (nape.Position - rootPart.Position).Magnitude
-						if dist < closestDist then
-							closestDist = dist
-							targetNape = nape
-						end
-					end
+			if not nape or isNapeDead(nape) then
+				removeHighlight()
+				removeFly(hrp)
+				print("[CombatFarm] 🔍 Không tìm thấy Titan – Chờ...")
+				task.wait(2)
+				continue
+			end
+
+			-- Highlight Nape
+			attachHighlight(nape)
+
+			-- Tính toán vị trí bay – ở trên Nape theo FlyHeight
+			local flyHeight = Config.FlyHeight
+			local targetPos = nape.Position + Vector3.new(0, flyHeight, 0)
+
+			-- Áp Fly
+			applyFly(hrp, targetPos)
+
+			-- Chờ đến khi đủ gần để đánh
+			local strikeRange = 20
+			local timeout     = 8
+			local elapsed     = 0
+
+			while elapsed < timeout and Config.FarmActive do
+				local dist = (hrp.Position - nape.Position).Magnitude
+
+				-- Cập nhật hướng nhìn về phía Nape
+				local bg = hrp:FindFirstChild("_FarmBodyGyro")
+				if bg then
+					bg.CFrame = CFrame.lookAt(hrp.Position, nape.Position)
 				end
-			end
 
-			if not targetNape then task.wait(0.5) continue end
+				if dist <= strikeRange then
+					break
+				end
 
-			-- Đánh dấu mục tiêu bằng Highlight đỏ rực
-			attachHighlight(targetNape)
+				if isNapeDead(nape) then break end
 
-			-- 2. GIAI ĐOẠN 1: Tiến hành tiếp cận (Bay lên đỉnh đầu Titan)
-			local targetPos = targetNape.Position + Vector3.new(0, Config.FlyHeight, 0)
-			local bp, bg = applyFly(rootPart, targetPos)
-
-			if Config.WallEnabled then
-				tryCreateWall(targetNape, rootPart)
-			end
-
-			local timeout = 0
-			while isAlive() and timeout < 5 do
-				if isNapeDead(targetNape) then break end
-				targetPos = targetNape.Position + Vector3.new(0, Config.FlyHeight, 0)
-				if bp and bp.Parent then bp.Position = targetPos end
-				if (rootPart.Position - targetPos).Magnitude < 15 then break end
+				elapsed  = elapsed + 0.1
 				task.wait(0.1)
-				timeout += 0.1
 			end
 
-			if not isAlive() then break end
-
-			-- 3. GIAI ĐOẠN 2: Khống chế CFrame Nape & Kích hoạt Auto Click
-			-- Xóa các mối nối liên kết (Weld, Motor6D,...) để tránh kéo theo cả người Titan khi di chuyển Nape
-			pcall(function()
-				targetNape.Anchored = true
-				targetNape:ClearAllChildren() -- Xóa tất cả các con bên trong Nape (các mối nối)
-				
-				-- Tìm và xóa các mối nối từ phía Titan trỏ tới Nape
-				local titan = targetNape:FindFirstAncestorOfClass("Model")
-				if titan then
-					for _, desc in ipairs(titan:GetDescendants()) do
-						if desc:IsA("Weld") or desc:IsA("WeldConstraint") or desc:IsA("Motor6D") or desc:IsA("JointInstance") then
-							if desc.Part0 == targetNape or desc.Part1 == targetNape then
-								desc:Destroy()
-							end
-						end
-					end
+			-- Tấn công nếu đủ gần
+			if not isNapeDead(nape) then
+				local dist = (hrp.Position - nape.Position).Magnitude
+				if dist <= strikeRange then
+					doAttack()
+					task.wait(0.3)
+					doAttack()  -- Double tap để chắc chắn
 				end
-			end)
-
-			local clickTimeout = 0
-			while isAlive() and not isNapeDead(targetNape) and clickTimeout < 10 do
-				if bp and bp.Parent then
-					bp.Position = rootPart.Position -- Khóa chặt nhân vật lơ lửng tại chỗ
-				end
-
-				-- Đồng bộ vị trí bẻ cong Nape ra thẳng hướng ngực người chơi
-				pcall(function()
-					targetNape.CFrame = getNapeInFrontCFrame(rootPart, targetNape)
-				end)
-
-				-- Thực hiện giả lập Click ảo qua VirtualInputManager
-				pcall(function()
-					local VIM = game:GetService("VirtualInputManager")
-					local screenPos = workspace.CurrentCamera:WorldToScreenPoint(targetNape.Position)
-					VIM:SendMouseButtonEvent(screenPos.X, screenPos.Y, 0, true, game, 0)
-					task.wait(0.04)
-					VIM:SendMouseButtonEvent(screenPos.X, screenPos.Y, 0, false, game, 0)
-				end)
-
-				task.wait(0.06)
-				clickTimeout += 0.06
 			end
 
-			-- Gỡ Highlight khi Titan bị hạ gục
-			removeHighlight()
-
-			if bp and bp.Parent then bp:Destroy() end
-			if bg and bg.Parent then bg:Destroy() end
-
-			task.wait(0)
+			task.wait(0.2)
 		end
 
-		-- Tự động dọn dẹp bộ dời vị trí nếu thoát khỏi vòng lặp
-		cleanUp(mySessionId)
+		-- Dọn dẹp khi thoát loop
+		local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+		if hrp then removeFly(hrp) end
+		removeHighlight()
+		print("[CombatFarm] 🔴 Farm Loop: DỪNG")
 	end)
 end
 
-function CombatFarm.Stop()
-	-- Thay đổi Session ID để phá vỡ vòng Loop đang chạy ngầm
-	Config.FarmSessionId += 1
-	cleanUp(Config.FarmSessionId)
+function CombatFarm.StopFarm()
+	Config.FarmActive = false
+	Config:NewSession()  -- Vô hiệu hóa session cũ
+
+	local char = player.Character
+	local hrp  = char and char:FindFirstChild("HumanoidRootPart")
+	if hrp then removeFly(hrp) end
+	removeHighlight()
+
+	print("[CombatFarm] 🔴 Farm: DỪNG")
 end
 
 return CombatFarm
