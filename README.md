@@ -2,15 +2,18 @@
 
 Chào mừng đến với Titans Hub!
 
-## Hướng dẫn sử dụng
+## 🚀 Hướng dẫn sử dụng
 
-Copy đoạn script dưới đây và dán vào Executor của bạn (Krnl, Fluxus, Delta,...) để chạy:
+Copy đoạn script dưới đây và dán vào Executor của bạn (Krnl, Fluxus, Delta, Synapse X...) để chạy. 
 
 ```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/NguyenTriThuc2010/Haha/main/MainLoader.lua"))()
+-- Cập nhật tự động lấy phiên bản mới nhất, chống lưu cache cũ
+loadstring(game:HttpGet("https://raw.githubusercontent.com/NguyenTriThuc2010/Haha/main/MainLoader.lua?v=" .. tostring(os.time())))()
 ```
 
 ---
-
-> **Lưu ý dành cho Developer:** 
-> Bộ mã này hiện đang được thiết kế dưới dạng sử dụng `script.Parent` và `require()`, phù hợp để build trong Roblox Studio. Nếu chạy trực tiếp qua Executor bằng đoạn script trên, bạn cần sửa lại logic nạp module trong `MainLoader.lua` thành các lệnh `loadstring(game:HttpGet(...))` tương ứng cho từng file con.
+**Các tính năng nổi bật:**
+- Farm Nape tự động ⚔️
+- Hiệu ứng bức tường 🧱
+- Tùy chỉnh độ cao bay 📏
+- Bật/Tắt Menu nhanh gọn bằng phím `RightShift` (Shift Phải)
