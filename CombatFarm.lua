@@ -110,6 +110,18 @@ local function removeFly(rootPart)
 	if bg then bg:Destroy() end
 end
 
+local function cleanUp(sessionId)
+	-- Chỉ dọn dẹp nếu đây là Session đang hoạt động (tránh xóa nhầm của Session mới)
+	if not sessionId or sessionId == Config.FarmSessionId then
+		local character = player.Character
+		if character then
+			local rootPart = character:FindFirstChild("HumanoidRootPart")
+			if rootPart then removeFly(rootPart) end
+		end
+		removeHighlight()
+	end
+end
+
 local function getNapeInFrontCFrame(rootPart, nape)
 	local lookFlat = Vector3.new(rootPart.CFrame.LookVector.X, 0, rootPart.CFrame.LookVector.Z)
 	if lookFlat.Magnitude < 0.01 then
@@ -256,20 +268,14 @@ function CombatFarm.StartLoop()
 		end
 
 		-- Tự động dọn dẹp bộ dời vị trí nếu thoát khỏi vòng lặp
-		CombatFarm.Stop()
+		cleanUp(mySessionId)
 	end)
 end
 
 function CombatFarm.Stop()
 	-- Thay đổi Session ID để phá vỡ vòng Loop đang chạy ngầm
 	Config.FarmSessionId += 1
-	
-	local character = player.Character
-	if character then
-		local rootPart = character:FindFirstChild("HumanoidRootPart")
-		if rootPart then removeFly(rootPart) end
-	end
-	removeHighlight()
+	cleanUp(Config.FarmSessionId)
 end
 
 return CombatFarm
