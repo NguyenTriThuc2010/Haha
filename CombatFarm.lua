@@ -110,15 +110,23 @@ local function removeFly(rootPart)
 	if bg then bg:Destroy() end
 end
 
-local function getNapeInFrontCFrame(rootPart)
+local function getNapeInFrontCFrame(rootPart, nape)
 	local lookFlat = Vector3.new(rootPart.CFrame.LookVector.X, 0, rootPart.CFrame.LookVector.Z)
 	if lookFlat.Magnitude < 0.01 then
 		lookFlat = Vector3.new(0, 0, -1)
 	end
 	lookFlat = lookFlat.Unit
 
-	local frontPos = rootPart.Position + lookFlat * Config.NapeFrontOffset + Vector3.new(0, 1, 0)
-	return CFrame.new(frontPos)
+	-- Tính toán kích thước Nape để người chơi không bị chui vào trong
+	local napeSize = nape and nape.Size or Vector3.new(4, 4, 4)
+	local radius = math.max(napeSize.X, napeSize.Y, napeSize.Z) / 2
+	
+	-- Khoảng cách từ người chơi đến bề mặt Nape là 3.5 studs (vừa tầm kiếm chém bề mặt)
+	local dynamicOffset = radius + 3.5
+
+	local frontPos = rootPart.Position + lookFlat * dynamicOffset + Vector3.new(0, 0.5, 0)
+	-- Quay mặt Nape hướng về phía người chơi để chém vào bề mặt dễ dàng hơn
+	return CFrame.new(frontPos, rootPart.Position)
 end
 
 -- Hàm tạo tường bảo vệ (được bóc tách gián tiếp từ module Visuals)
@@ -196,6 +204,24 @@ function CombatFarm.StartLoop()
 			if not isAlive() then break end
 
 			-- 3. GIAI ĐOẠN 2: Khống chế CFrame Nape & Kích hoạt Auto Click
+			-- Xóa các mối nối liên kết (Weld, Motor6D,...) để tránh kéo theo cả người Titan khi di chuyển Nape
+			pcall(function()
+				targetNape.Anchored = true
+				targetNape:ClearAllChildren() -- Xóa tất cả các con bên trong Nape (các mối nối)
+				
+				-- Tìm và xóa các mối nối từ phía Titan trỏ tới Nape
+				local titan = targetNape:FindFirstAncestorOfClass("Model")
+				if titan then
+					for _, desc in ipairs(titan:GetDescendants()) do
+						if desc:IsA("Weld") or desc:IsA("WeldConstraint") or desc:IsA("Motor6D") or desc:IsA("JointInstance") then
+							if desc.Part0 == targetNape or desc.Part1 == targetNape then
+								desc:Destroy()
+							end
+						end
+					end
+				end
+			end)
+
 			local clickTimeout = 0
 			while isAlive() and not isNapeDead(targetNape) and clickTimeout < 10 do
 				if bp and bp.Parent then
@@ -204,7 +230,7 @@ function CombatFarm.StartLoop()
 
 				-- Đồng bộ vị trí bẻ cong Nape ra thẳng hướng ngực người chơi
 				pcall(function()
-					targetNape.CFrame = getNapeInFrontCFrame(rootPart)
+					targetNape.CFrame = getNapeInFrontCFrame(rootPart, targetNape)
 				end)
 
 				-- Thực hiện giả lập Click ảo qua VirtualInputManager
